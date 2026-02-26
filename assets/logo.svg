@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700&amp;display=swap');
+      .brand-text { font-family: 'Outfit', 'Inter', 'Helvetica Neue', sans-serif; font-weight: 700; }
+      .subtitle-text { font-family: 'Inter', 'Helvetica Neue', sans-serif; font-weight: 600; letter-spacing: 0.18em; }
+    </style>
+  </defs>
+  <text x="0" y="55" class="brand-text" fill="#00C9A7" font-size="52">Br</text>
+  <text x="68" y="55" class="brand-text" fill="#00C9A7" font-size="52">i</text>
+  <circle cx="78" cy="20" r="6" fill="#C8E636"/>
+  <text x="84" y="55" class="brand-text" fill="#00C9A7" font-size="52">ghter</text>
+  <text x="1" y="80" class="subtitle-text" fill="#00C9A7" font-size="11.5" letter-spacing="0.18em">SUSTAINABLE &amp; IMPACT INVESTING</text>
+</svg>
