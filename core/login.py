@@ -14,7 +14,7 @@ import os
 import base64
 import time
 
-from db_utils import (
+from core.db_utils import (
     DB_NAME,
     init_extended_db,
     get_user_id,
@@ -98,77 +98,6 @@ def login_user(username, password):
 
 
 # ----------------------------
-# CSS for Login Page
-# ----------------------------
-
-_LOGIN_CSS = """<style>
-/* Login page scoped styles */
-.login-wrap {
-    max-width: 440px; margin: 40px auto; padding: 0 16px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-.login-card {
-    background: #fff; border: 1px solid #E2E8F0;
-    border-radius: 20px; overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0,0,0,.06);
-}
-.login-hdr {
-    background: linear-gradient(135deg, #0D9488 0%, #059669 50%, #0284C7 100%);
-    padding: 32px 32px 28px; text-align: center;
-}
-.login-hdr img { height: 48px; margin-bottom: 12px; }
-.login-hdr .login-brand {
-    font-size: .68rem; font-weight: 600; color: rgba(255,255,255,.85);
-    text-transform: uppercase; letter-spacing: .08em;
-}
-.login-hdr h1 {
-    font-family: 'Inter', sans-serif; font-size: 1.55rem;
-    font-weight: 800; color: #fff; margin: 8px 0 0;
-    letter-spacing: -.03em; line-height: 1.2;
-}
-.login-hdr p {
-    font-size: .82rem; color: rgba(255,255,255,.7);
-    margin: 6px 0 0; line-height: 1.5;
-}
-.login-body { padding: 28px 32px 32px; }
-.login-ft {
-    text-align: center; padding: 16px 32px 20px;
-    border-top: 1px solid #F1F5F9;
-    font-size: .68rem; color: #CBD5E1; line-height: 1.8;
-}
-.login-ft b { color: #94A3B8; font-weight: 600; }
-
-/* Password strength meter */
-.pw-meter { height: 4px; border-radius: 2px; margin: -8px 0 12px; background: #F1F5F9; }
-.pw-meter .pw-fill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
-.pw-weak { width: 33%; background: #E11D48; }
-.pw-medium { width: 66%; background: #D97706; }
-.pw-strong { width: 100%; background: #059669; }
-
-/* Admin panel */
-.admin-card {
-    background: #fff; border: 1px solid #E2E8F0; border-radius: 16px;
-    padding: 20px 24px; margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04);
-}
-.admin-card .admin-user {
-    font-size: .92rem; font-weight: 600; color: #0F172A;
-}
-.admin-card .admin-meta {
-    font-size: .75rem; color: #64748B; margin-top: 4px; line-height: 1.6;
-}
-.admin-badge {
-    display: inline-block; padding: 2px 10px; border-radius: 100px;
-    font-size: .62rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .04em;
-}
-.admin-badge.role-admin { background: #E8FAF0; color: #059669; }
-.admin-badge.role-user { background: #F1F5F9; color: #64748B; }
-.admin-badge.inactive { background: #FFECEB; color: #E11D48; }
-</style>"""
-
-
-# ----------------------------
 # Login Page UI
 # ----------------------------
 
@@ -176,7 +105,7 @@ def show_login_page():
     init_extended_db()
 
     # Load logo
-    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "logo.svg")
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "logo.svg")
     logo_b64 = ""
     if os.path.isfile(logo_path):
         with open(logo_path, "rb") as f:
@@ -187,7 +116,10 @@ def show_login_page():
         '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">',
         unsafe_allow_html=True,
     )
-    st.markdown(_LOGIN_CSS, unsafe_allow_html=True)
+    css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "styles", "main.css")
+    if os.path.isfile(css_path):
+        with open(css_path) as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     # Check auto-login via remember-me
     if "remember_me_token" in st.session_state and st.session_state["remember_me_token"]:
@@ -350,7 +282,6 @@ def show_login_page():
 
 def show_admin_panel():
     """Render the admin user management panel."""
-    st.markdown(_LOGIN_CSS, unsafe_allow_html=True)
     st.markdown(
         '<div class="sec-t">User Management</div>'
         '<div class="sec-s">View, manage, and configure user accounts.</div>',

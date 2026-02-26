@@ -11,7 +11,7 @@ import pandas as pd
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
 from openpyxl.utils import get_column_letter
-from kpis import compute_kpis, KPI_DEFINITIONS
+from core.kpis import compute_kpis, KPI_DEFINITIONS
 
 
 # Color palette - Brighter Investing Brand (Light theme)
@@ -216,7 +216,7 @@ def generate_workbook(parsed_rows):
         "DonatedServicesFacilities",
     ]
 
-    from parser import FIELD_LABELS
+    from core.parser import FIELD_LABELS
 
     # Write headers with human-readable labels
     for i, field in enumerate(input_fields, start=1):
