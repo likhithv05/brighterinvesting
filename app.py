@@ -34,6 +34,7 @@ _DEFAULTS = {
     "comparison_mode": False, "comparison_ein": None, "show_admin": False,
     "tag_filter_eins": None, "propublica_results": None,
     "propublica_filings": None, "propublica_selected_ein": None,
+    "pp_loaded_rows": None, "pp_loaded_org_name": None,
 }
 for k, v in _DEFAULTS.items():
     if k not in st.session_state:
