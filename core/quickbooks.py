@@ -212,7 +212,13 @@ def _match_label(label, field_map):
     """Match a cleaned label against a field mapping list.
 
     Returns the field key if a match is found, else None.
+    Excludes composite rows like 'total liabilities and equity' from
+    matching individual fields.
     """
+    # Skip composite total rows that would cause false matches
+    if "liabilities and equity" in label or "liabilities & equity" in label:
+        return None
+
     for field_key, patterns in field_map:
         for pattern in patterns:
             if pattern in label:
