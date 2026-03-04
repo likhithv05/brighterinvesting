@@ -9,84 +9,153 @@ Georgia Institute of Technology — Spring 2026
 import pandas as pd
 
 
+def _val(row, key):
+    """Get a numeric value from a row, returning None if the field is unavailable.
+
+    Distinguishes between 'field is zero' (returns 0) and
+    'field is absent from this data source' (returns None).
+    """
+    v = row.get(key, 0)
+    if v is None:
+        return None
+    return float(v) if v else 0.0
+
+
+def _safe_div(numerator, denominator):
+    """Divide two values, returning None if either operand is None."""
+    if numerator is None or denominator is None:
+        return None
+    if denominator == 0:
+        return 0
+    return numerator / denominator
+
+
 def compute_kpis(row):
     """
-    Compute all derived KPI metrics for a single parsed Form 990 record.
+    Compute all derived KPI metrics for a single parsed record.
+
+    Handles both Form 990 data and QuickBooks data. When a source field
+    is None (unavailable from QuickBooks), the dependent KPI is also None,
+    which displays as 'N/A' in the UI.
 
     Parameters:
-        row: dict from parse_single_xml()
+        row: dict from parse_single_xml() or parse_quickbooks_report()
 
     Returns:
-        dict with KPI field names and computed values
+        dict with KPI field names and computed values (or None if unavailable)
     """
-    total_rev = row.get("TotalRevenue", 0) or 0
-    total_exp = row.get("TotalExpenses", 0) or 0
-    program_exp = row.get("ProgramExpenses", 0) or 0
-    mgmt_exp = row.get("ManagementGeneralExpenses", 0) or 0
-    fundraising_exp = row.get("FundraisingExpenses", 0) or 0
-    contributions = row.get("TotalContributionsGrants", 0) or 0
-    investment_income = row.get("InvestmentIncome", 0) or 0
-    net_gain_investments = row.get("NetGainLossInvestments", 0) or 0
-    cash = row.get("CashNonInterest", 0) or 0
-    savings = row.get("SavingsTempCashInvestments", 0) or 0
-    public_inv = row.get("PublicInvestments", 0) or 0
-    depreciation = row.get("DepreciationAmortization", 0) or 0
-    total_assets = row.get("TotalAssets", 0) or 0
-    total_liabilities = row.get("TotalLiabilities", 0) or 0
-    total_net_assets = row.get("TotalNetAssets", 0) or 0
-    salaries = row.get("SalariesWages", 0) or 0
-    prior_rev = row.get("PriorYearRevenue", 0) or 0
-    prior_exp = row.get("PriorYearExpenses", 0) or 0
+    total_rev = _val(row, "TotalRevenue")
+    total_exp = _val(row, "TotalExpenses")
+    program_exp = _val(row, "ProgramExpenses")
+    mgmt_exp = _val(row, "ManagementGeneralExpenses")
+    fundraising_exp = _val(row, "FundraisingExpenses")
+    contributions = _val(row, "TotalContributionsGrants")
+    investment_income = _val(row, "InvestmentIncome")
+    net_gain_investments = _val(row, "NetGainLossInvestments")
+    cash = _val(row, "CashNonInterest")
+    savings = _val(row, "SavingsTempCashInvestments")
+    public_inv = _val(row, "PublicInvestments")
+    depreciation = _val(row, "DepreciationAmortization")
+    total_assets = _val(row, "TotalAssets")
+    total_liabilities = _val(row, "TotalLiabilities")
+    total_net_assets = _val(row, "TotalNetAssets")
+    salaries = _val(row, "SalariesWages")
+    prior_rev = _val(row, "PriorYearRevenue")
+    prior_exp = _val(row, "PriorYearExpenses")
 
-    # New fields from feedback
-    realized_gains = row.get("RealizedGainsSecurities", 0) or 0
-    unrealized_gains = row.get("UnrealizedGainsSecurities", 0) or 0
-    real_estate_assets = row.get("RealEstateAssets", 0) or 0
-    property_equipment = row.get("PropertyEquipmentNet", 0) or 0
+    # Investment detail fields
+    realized_gains = _val(row, "RealizedGainsSecurities")
+    unrealized_gains = _val(row, "UnrealizedGainsSecurities")
+    real_estate_assets = _val(row, "RealEstateAssets")
+    property_equipment = _val(row, "PropertyEquipmentNet")
 
-    operating_surplus = total_rev - total_exp
-    total_cash = cash + savings
-    liquid_assets = cash + savings + public_inv
+    # Derived intermediate values (None-safe)
+    operating_surplus = None
+    if total_rev is not None and total_exp is not None:
+        operating_surplus = total_rev - total_exp
 
-    # Total Investment Returns = investment income + unrealized gains + realized gains
-    total_investment_returns = investment_income + unrealized_gains + realized_gains
+    total_cash = None
+    if cash is not None and savings is not None:
+        total_cash = cash + savings
+    elif cash is not None:
+        total_cash = cash
+    elif savings is not None:
+        total_cash = savings
 
-    # Non-real-estate investment returns
-    non_re_investment_returns = total_investment_returns  # subtract RE gains if tracked
+    liquid_assets = None
+    if cash is not None or savings is not None or public_inv is not None:
+        liquid_assets = (cash or 0) + (savings or 0) + (public_inv or 0)
+
+    # Total Investment Returns (None if all components are None)
+    total_investment_returns = None
+    if any(v is not None for v in [investment_income, unrealized_gains, realized_gains]):
+        total_investment_returns = (
+            (investment_income or 0)
+            + (unrealized_gains or 0)
+            + (realized_gains or 0)
+        )
+
+    # Net operating income
+    net_operating_income = None
+    if total_rev is not None and total_exp is not None:
+        net_operating_income = (
+            total_rev - (investment_income or 0) - (net_gain_investments or 0)
+        ) - total_exp
+
+    # Net asset growth
+    boy_net_assets = _val(row, "TotalNetAssetsBOY")
+    net_asset_growth = None
+    if total_net_assets is not None and boy_net_assets is not None and boy_net_assets > 0:
+        net_asset_growth = (total_net_assets - boy_net_assets) / boy_net_assets
+
+    # Real estate + property
+    combined_real_estate = None
+    if real_estate_assets is not None or property_equipment is not None:
+        combined_real_estate = (real_estate_assets or 0) + (property_equipment or 0)
 
     return {
         # ── Core KPIs ──
         "OperatingSurplus": operating_surplus,
         "TotalCashEquivalents": total_cash,
-        "ProgramExpenseRatio": program_exp / total_exp if total_exp > 0 else 0,
-        "ManagementGeneralRatio": mgmt_exp / total_exp if total_exp > 0 else 0,
-        "FundraisingRatio": fundraising_exp / total_exp if total_exp > 0 else 0,
-        "OperatingMargin": operating_surplus / total_rev if total_rev > 0 else 0,
-        "ContributionDependency": contributions / total_rev if total_rev > 0 else 0,
+        "ProgramExpenseRatio": _safe_div(program_exp, total_exp),
+        "ManagementGeneralRatio": _safe_div(mgmt_exp, total_exp),
+        "FundraisingRatio": _safe_div(fundraising_exp, total_exp),
+        "OperatingMargin": _safe_div(operating_surplus, total_rev),
+        "ContributionDependency": _safe_div(contributions, total_rev),
         "LiquidAssets": liquid_assets,
-        "MonthsExpenseCoverage": liquid_assets / (total_exp / 12) if total_exp > 0 else 0,
-        "NetOperatingIncome": (total_rev - investment_income - net_gain_investments) - total_exp,
+        "MonthsExpenseCoverage": (
+            _safe_div(liquid_assets, total_exp / 12)
+            if total_exp and total_exp > 0 and liquid_assets is not None
+            else (0 if liquid_assets is not None and total_exp is not None else None)
+        ),
+        "NetOperatingIncome": net_operating_income,
         "NetInvestmentGain": net_gain_investments,
         "DepreciationNonCash": depreciation,
-        "DebtToAssetRatio": total_liabilities / total_assets if total_assets > 0 else 0,
-        "CurrentRatio": liquid_assets / total_liabilities if total_liabilities > 0 else 0,
-        "RevenueGrowth": (total_rev - prior_rev) / prior_rev if prior_rev > 0 else 0,
-        "ExpenseGrowth": (total_exp - prior_exp) / prior_exp if prior_exp > 0 else 0,
-        "SalaryToExpenseRatio": salaries / total_exp if total_exp > 0 else 0,
-        "NetAssetGrowth": (total_net_assets - row.get("TotalNetAssetsBOY", 0)) / row.get("TotalNetAssetsBOY", 1) if row.get("TotalNetAssetsBOY", 0) > 0 else 0,
+        "DebtToAssetRatio": _safe_div(total_liabilities, total_assets),
+        "CurrentRatio": _safe_div(liquid_assets, total_liabilities),
+        "RevenueGrowth": _safe_div(
+            (total_rev - prior_rev) if total_rev is not None and prior_rev is not None else None,
+            prior_rev,
+        ),
+        "ExpenseGrowth": _safe_div(
+            (total_exp - prior_exp) if total_exp is not None and prior_exp is not None else None,
+            prior_exp,
+        ),
+        "SalaryToExpenseRatio": _safe_div(salaries, total_exp),
+        "NetAssetGrowth": net_asset_growth,
 
-        # ── New Metrics (Feedback) ──
+        # ── Investment Metrics ──
         "CashOnly": cash,
         "SavingsOnly": savings,
-        "CashToLiquidRatio": cash / liquid_assets if liquid_assets > 0 else 0,
-        "SavingsToLiquidRatio": savings / liquid_assets if liquid_assets > 0 else 0,
+        "CashToLiquidRatio": _safe_div(cash, liquid_assets),
+        "SavingsToLiquidRatio": _safe_div(savings, liquid_assets),
         "RealizedGains": realized_gains,
         "UnrealizedGains": unrealized_gains,
         "TotalInvestmentReturns": total_investment_returns,
-        "RealEstateAssets": real_estate_assets + property_equipment,
-        "InvestmentReturnsToLiquid": non_re_investment_returns / liquid_assets if liquid_assets > 0 else 0,
-        "InvestmentReturnsToAssets": total_investment_returns / total_assets if total_assets > 0 else 0,
-        "InvestmentReturnsToExpenses": total_investment_returns / total_exp if total_exp > 0 else 0,
+        "RealEstateAssets": combined_real_estate,
+        "InvestmentReturnsToLiquid": _safe_div(total_investment_returns, liquid_assets),
+        "InvestmentReturnsToAssets": _safe_div(total_investment_returns, total_assets),
+        "InvestmentReturnsToExpenses": _safe_div(total_investment_returns, total_exp),
     }
 
 
@@ -332,6 +401,8 @@ def format_kpi_value(key, value):
 
 def get_kpi_status(key, value):
     """Return a status indicator (good/warning/concern) based on benchmarks."""
+    if value is None:
+        return "neutral"
     if key == "ProgramExpenseRatio":
         if value >= 0.75:
             return "good"

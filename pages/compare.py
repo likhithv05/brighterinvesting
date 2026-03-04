@@ -11,7 +11,12 @@ from core.kpis import (
 )
 from components.kpi_cards import sec
 
-_ST = {"good": ("Healthy", "g"), "warning": ("Watch", "w"), "concern": ("At Risk", "b")}
+_ST = {
+    "good": ("Healthy", "g"),
+    "warning": ("Watch", "w"),
+    "concern": ("At Risk", "b"),
+    "neutral": ("N/A", "n"),
+}
 
 
 def render(parsed_rows, latest_kpis, org_name, latest_year, ein_map):

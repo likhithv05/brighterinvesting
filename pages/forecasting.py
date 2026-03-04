@@ -37,7 +37,7 @@ def _fmt(v):
 
 def _extract_baseline(row):
     """Pull baseline financial figures from the most recent filing."""
-    g = lambda k: row.get(k, 0) or 0
+    g = lambda k: row.get(k, 0) if row.get(k) is not None else 0
     grants = g("TotalContributionsGrants")
     inv = g("InvestmentIncome") + g("NetGainLossInvestments")
     other = g("ProgramServiceRevenue") + g("OtherRevenue") + g("UnrelatedBusinessRevenue")

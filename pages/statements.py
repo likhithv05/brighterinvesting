@@ -71,6 +71,8 @@ _BALANCE_ROWS = [
 
 def _fmt(value):
     """Format a dollar value with $ prefix, commas, and negative parentheses."""
+    if value is None:
+        return '<span style="color:#94A3B8;">N/A</span>'
     if not isinstance(value, (int, float)):
         return str(value) if value else "\u2014"
     if value < 0:

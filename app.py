@@ -17,6 +17,7 @@ from components.header import render_header, render_org_banner, render_footer
 from components.sidebar import render_sidebar
 from components.data_filter import apply_filters
 from components.empty_state import render_empty_state
+from components.supplement_form import render_supplement_form
 
 from pages import dashboard, trends, investments, statements, raw_data, compare, forecasting
 
@@ -65,6 +66,9 @@ parsed_rows, ein_map = apply_filters(all_parsed_rows, parse_errors)
 if not parsed_rows:
     render_empty_state()
     st.stop()
+
+# ─── QuickBooks Supplement Form (fills in optional gaps) ───
+parsed_rows = render_supplement_form(parsed_rows)
 
 # ─── Compute KPIs ───
 kpi_data = []

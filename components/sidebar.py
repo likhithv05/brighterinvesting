@@ -29,6 +29,7 @@ from core.propublica import (
     fetch_filing_xml,
     format_filing_year,
 )
+from core.quickbooks import parse_quickbooks_report, merge_quickbooks_data
 from core.login import show_admin_panel
 
 
@@ -57,10 +58,26 @@ def load_uploads(files):
     return rows, errs
 
 
+def load_qb_uploads(files):
+    """Parse QuickBooks Excel/CSV uploads and merge by year."""
+    all_partial, errs = [], []
+    for f in files:
+        try:
+            partial_rows = parse_quickbooks_report(f.read(), filename=f.name)
+            all_partial.extend(partial_rows)
+        except Exception as e:
+            errs.append((f.name, str(e)))
+    if all_partial:
+        merged = merge_quickbooks_data(all_partial)
+        return merged, errs
+    return [], errs
+
+
 # ─── Data Source Resolution ───
 
 def _resolve_data(data_tab, uploaded_files, use_demo, demo_dir,
-                  demo_available, saved_orgs, user_id):
+                  demo_available, saved_orgs, user_id,
+                  qb_uploaded_files=None):
     """Pick the active data source and return (rows, errors)."""
     if data_tab == "Upload XML" and uploaded_files:
         rows, errors = load_uploads(uploaded_files)
@@ -74,6 +91,14 @@ def _resolve_data(data_tab, uploaded_files, use_demo, demo_dir,
         st.session_state["pp_loaded_rows"] = None
         st.session_state["pp_loaded_org_name"] = None
         return load_demo(demo_dir), []
+
+    if data_tab == "Upload QuickBooks" and qb_uploaded_files:
+        rows, errors = load_qb_uploads(qb_uploaded_files)
+        if rows and user_id:
+            save_organization(user_id, rows)
+        st.session_state["pp_loaded_rows"] = None
+        st.session_state["pp_loaded_org_name"] = None
+        return rows, errors
 
     if st.session_state.get("pp_loaded_rows"):
         return st.session_state["pp_loaded_rows"], []
@@ -416,12 +441,13 @@ def render_sidebar():
         # ── Data Source Toggle ──
         data_tab = st.radio(
             "Source",
-            ["Upload XML", "Search ProPublica"],
+            ["Upload XML", "Upload QuickBooks", "Search ProPublica"],
             horizontal=True,
             label_visibility="collapsed",
         )
 
         uploaded_files = []
+        qb_uploaded_files = []
         use_demo = False
         demo_dir = ""
         demo_available = False
@@ -458,6 +484,38 @@ def render_sidebar():
             if demo_available:
                 use_demo = st.checkbox("Load demo data (Habitat for Humanity)")
 
+        elif data_tab == "Upload QuickBooks":
+            st.markdown(
+                '<div class="sb-upload-zone">'
+                '<div class="sb-upload-icon">'
+                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" '
+                'viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">'
+                '<path stroke-linecap="round" stroke-linejoin="round" '
+                'd="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 '
+                '0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>'
+                '</svg></div>'
+                '<div class="sb-upload-title">Upload QuickBooks Reports</div>'
+                '<div class="sb-upload-sub">'
+                'Upload Profit & Loss and/or Balance Sheet exports'
+                '</div></div>',
+                unsafe_allow_html=True,
+            )
+
+            qb_uploaded_files = st.file_uploader(
+                "Upload QuickBooks Reports",
+                type=["xlsx", "xls", "csv"],
+                accept_multiple_files=True,
+                label_visibility="collapsed",
+                key="qb_file_uploader",
+            )
+
+            st.caption(
+                "Export your **Profit & Loss** and **Balance Sheet** "
+                "reports from QuickBooks as Excel or CSV, then upload "
+                "both files here. Use comparative (multi-year) reports "
+                "for trend analysis."
+            )
+
         else:  # Search ProPublica
             _render_propublica(user_id)
 
@@ -465,6 +523,7 @@ def render_sidebar():
         all_parsed_rows, parse_errors = _resolve_data(
             data_tab, uploaded_files, use_demo, demo_dir,
             demo_available, saved_orgs, user_id,
+            qb_uploaded_files=qb_uploaded_files,
         )
 
         # ── Fill the "Currently Loaded" indicator ──

@@ -19,6 +19,7 @@ _STATUS = {
     "good": ("Healthy", "g"),
     "warning": ("Watch", "w"),
     "concern": ("At Risk", "b"),
+    "neutral": ("N/A", "n"),
 }
 
 _SECONDARY_KPIS = [

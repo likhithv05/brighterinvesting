@@ -163,7 +163,9 @@ def generate_workbook(parsed_rows):
         ws_summary.cell(row=row_idx, column=1).font = Font(name="Calibri", bold=True, size=11)
 
         for col_offset, key in enumerate(kpi_keys_ordered, start=2):
-            cell = ws_summary.cell(row=row_idx, column=col_offset, value=kpis.get(key, 0))
+            raw_val = kpis.get(key, 0)
+            display_val = "N/A" if raw_val is None else raw_val
+            cell = ws_summary.cell(row=row_idx, column=col_offset, value=display_val)
             cell.font = Font(name="Calibri", size=10)
             cell.alignment = Alignment(horizontal="right")
 
@@ -228,7 +230,8 @@ def generate_workbook(parsed_rows):
     for row_idx, row in enumerate(sorted_rows, start=2):
         for col_idx, field in enumerate(input_fields, start=1):
             val = row.get(field, "")
-            ws_inputs.cell(row=row_idx, column=col_idx, value=val)
+            display_val = "N/A" if val is None else val
+            ws_inputs.cell(row=row_idx, column=col_idx, value=display_val)
             ws_inputs.cell(row=row_idx, column=col_idx).font = Font(name="Calibri", size=10)
 
     # Apply currency formatting to numeric columns (columns 5 onward, except counts)

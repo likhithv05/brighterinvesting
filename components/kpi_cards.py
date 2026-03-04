@@ -7,7 +7,12 @@ import streamlit as st
 from core.kpis import KPI_DEFINITIONS, format_kpi_value, get_kpi_status
 
 
-_ST = {"good": ("Healthy", "g"), "warning": ("Watch", "w"), "concern": ("At Risk", "b")}
+_ST = {
+    "good": ("Healthy", "g"),
+    "warning": ("Watch", "w"),
+    "concern": ("At Risk", "b"),
+    "neutral": ("N/A", "n"),
+}
 
 
 def sec(title, sub):
