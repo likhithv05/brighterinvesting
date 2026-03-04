@@ -70,25 +70,29 @@ def _read_login_css():
 
 def _load_css():
     """Load main.css, Inter font, and login-page layout overrides."""
-    parts = [
+    # Font
+    st.markdown(
         '<link href="https://fonts.googleapis.com/css2?'
         'family=Inter:wght@300;400;500;600;700;800;900&display=swap" '
         'rel="stylesheet">',
-    ]
+        unsafe_allow_html=True,
+    )
+    # Main CSS — must be its own st.markdown call so the parser
+    # recognises the <style> block correctly.
     css_text = _read_login_css()
     if css_text:
-        parts.append(f"<style>{css_text}</style>")
+        st.markdown(f"<style>\n{css_text}\n</style>", unsafe_allow_html=True)
 
     # Login-specific: center content, constrain width, hide sidebar
-    parts.append(
-        "<style>"
-        '[data-testid="stMainBlockContainer"] {'
-        "  max-width: 480px; margin: 0 auto;"
-        "}"
-        '[data-testid="stSidebar"] { display: none; }'
-        "</style>"
+    st.markdown(
+        "<style>\n"
+        '[data-testid="stMainBlockContainer"] {\n'
+        "  max-width: 480px; margin: 0 auto;\n"
+        "}\n"
+        '[data-testid="stSidebar"] { display: none; }\n'
+        "</style>",
+        unsafe_allow_html=True,
     )
-    st.markdown("\n".join(parts), unsafe_allow_html=True)
 
 
 @st.cache_data(show_spinner=False)

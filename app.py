@@ -83,7 +83,7 @@ def _read_css():
 
 _css = _read_css()
 if _css:
-    st.markdown(f"<style>{_css}</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>\n{_css}\n</style>", unsafe_allow_html=True)
 st.markdown(
     '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">',
     unsafe_allow_html=True,
