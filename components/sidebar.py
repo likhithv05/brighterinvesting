@@ -1,7 +1,7 @@
 """
 Sidebar Component
 Handles data source selection, saved organizations,
-tag management, admin panel toggle, and logout.
+tag management, account settings, admin panel, and role enforcement.
 """
 
 import os
@@ -13,7 +13,6 @@ from core.db_utils import (
     save_organization,
     load_user_organizations,
     delete_organization,
-    clear_remember_me_token,
     create_tag,
     get_user_tags,
     delete_tag,
@@ -21,6 +20,7 @@ from core.db_utils import (
     remove_tag_from_org,
     get_tags_for_org,
     get_orgs_by_tag,
+    get_system_stats,
     TAG_COLORS,
 )
 from core.propublica import (
@@ -29,7 +29,8 @@ from core.propublica import (
     fetch_filing_xml,
     format_filing_year,
 )
-from core.login import show_admin_panel
+from components.admin_panel import render_admin_panel
+from components.account_settings import render_account_settings
 
 
 # ─── Data Loading Helpers ───
@@ -47,14 +48,36 @@ def load_demo(path):
     return rows
 
 
+_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 def load_uploads(files):
     rows, errs = [], []
-    for f in files:
+    for i, f in enumerate(files):
+        # Check file extension
+        if not f.name.lower().endswith(".xml"):
+            errs.append((f.name, "Not an XML file. Only Form 990 XML files are supported."))
+            continue
+        # Read and check size
+        raw = f.read()
+        if len(raw) > _MAX_UPLOAD_SIZE:
+            errs.append((f.name, f"File is too large ({len(raw) / (1024*1024):.1f} MB). Maximum is 50 MB."))
+            continue
         try:
-            rows.append(parse_single_xml(f.read(), filename=f.name))
+            rows.append(parse_single_xml(raw, filename=f.name))
         except Exception as e:
             errs.append((f.name, str(e)))
     return rows, errs
+
+
+def _section_label(text):
+    """Render a small uppercase section label in the sidebar."""
+    st.markdown(
+        f'<div style="font-size:0.65rem;font-weight:600;color:#94A3B8;'
+        f'letter-spacing:0.05em;text-transform:uppercase;margin:8px 0 4px;">'
+        f'{text}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ─── Data Source Resolution ───
@@ -63,22 +86,22 @@ def _resolve_data(data_tab, uploaded_files, use_demo, demo_dir,
                   demo_available, saved_orgs, user_id):
     """Pick the active data source and return (rows, errors)."""
     if data_tab == "Upload XML" and uploaded_files:
-        rows, errors = load_uploads(uploaded_files)
+        with st.spinner(f"Parsing {len(uploaded_files)} file(s)…"):
+            rows, errors = load_uploads(uploaded_files)
         if rows and user_id:
             save_organization(user_id, rows)
+            st.session_state["_orgs_dirty"] = True
         st.session_state["pp_loaded_rows"] = None
-        st.session_state["pp_loaded_org_name"] = None
         return rows, errors
 
     if data_tab == "Upload XML" and use_demo and demo_available:
         st.session_state["pp_loaded_rows"] = None
-        st.session_state["pp_loaded_org_name"] = None
         return load_demo(demo_dir), []
 
     if st.session_state.get("pp_loaded_rows"):
         return st.session_state["pp_loaded_rows"], []
 
-    selected_ein = st.session_state.get("selected_ein")
+    selected_ein = st.session_state.get("data_selected_ein")
     if selected_ein and selected_ein in saved_orgs:
         return saved_orgs[selected_ein]["parsed_data"], []
 
@@ -100,12 +123,23 @@ def _render_propublica(user_id):
         if pp_query.strip():
             with st.spinner("Searching..."):
                 results = search_nonprofits(pp_query.strip())
-                st.session_state["propublica_results"] = results
-                st.session_state["propublica_selected_ein"] = None
-                st.session_state["propublica_filings"] = None
+                st.session_state["pp_search_results"] = results
+                st.session_state["pp_selected_ein"] = None
+                st.session_state["pp_filings"] = None
 
-    results = st.session_state.get("propublica_results")
-    if not results or not results.get("organizations"):
+    results = st.session_state.get("pp_search_results")
+    if not results:
+        return
+    # Show API errors
+    if results.get("error"):
+        st.error(results["error"])
+        return
+    if not results.get("organizations"):
+        query_text = st.session_state.get("pp_search_input", "").strip()
+        st.warning(
+            f"No organizations found for '{query_text}'. "
+            "Try a different name or search by EIN."
+        )
         return
 
     orgs = results["organizations"][:10]
@@ -141,14 +175,17 @@ def _render_propublica(user_id):
         return
 
     # Auto-fetch filings when org selection changes
-    if ein_val != st.session_state.get("propublica_selected_ein"):
-        st.session_state["propublica_selected_ein"] = ein_val
+    if ein_val != st.session_state.get("pp_selected_ein"):
+        st.session_state["pp_selected_ein"] = ein_val
         with st.spinner("Loading available filings\u2026"):
             filings_data = get_organization_filings(ein_val)
-            st.session_state["propublica_filings"] = filings_data
+            st.session_state["pp_filings"] = filings_data
 
-    filings_data = st.session_state.get("propublica_filings")
+    filings_data = st.session_state.get("pp_filings")
     if not filings_data:
+        return
+    if filings_data.get("error"):
+        st.error(filings_data["error"])
         return
 
     filings = filings_data.get("filings_with_data", [])
@@ -205,10 +242,8 @@ def _render_propublica(user_id):
         if loaded_rows:
             if user_id:
                 save_organization(user_id, loaded_rows)
+                st.session_state["_orgs_dirty"] = True
             st.session_state["pp_loaded_rows"] = loaded_rows
-            st.session_state["pp_loaded_org_name"] = loaded_rows[0].get(
-                "OrganizationName", "Unknown"
-            )
             st.success(f"Loaded {len(loaded_rows)} filing(s)")
             st.rerun()
         for yr, err in errors:
@@ -219,7 +254,7 @@ def _render_propublica(user_id):
 
 def _render_saved_orgs(saved_orgs, user_id):
     """Render the saved organizations list inside an expander."""
-    tag_filter_eins = st.session_state.get("tag_filter_eins")
+    tag_filter_eins = st.session_state.get("data_tag_filter_eins")
     display_orgs = saved_orgs
     if tag_filter_eins:
         display_orgs = {k: v for k, v in saved_orgs.items()
@@ -253,18 +288,17 @@ def _render_saved_orgs(saved_orgs, user_id):
         col_load, col_del = st.columns([3, 1])
         with col_load:
             if st.button(
-                f"{s_info['name'][:25]} ({yrs})",
+                f"{s_info['name'][:25]}{'…' if len(s_info['name']) > 25 else ''} ({yrs})",
                 key=f"load_saved_{s_ein}",
                 use_container_width=True,
             ):
-                st.session_state["selected_ein"] = s_ein
-                st.session_state["selected_org_name"] = s_info["name"]
+                st.session_state["data_selected_ein"] = s_ein
                 st.session_state["pp_loaded_rows"] = None
-                st.session_state["pp_loaded_org_name"] = None
                 st.rerun()
         with col_del:
             if st.button("\U0001F5D1", key=f"del_saved_{s_ein}"):
                 delete_organization(user_id, s_ein)
+                st.session_state["_orgs_dirty"] = True
                 st.rerun()
 
 
@@ -300,11 +334,11 @@ def _render_tags(user_id, saved_orgs):
             )
             if tag_obj:
                 filtered_eins = get_orgs_by_tag(user_id, tag_obj["id"])
-                st.session_state["tag_filter_eins"] = filtered_eins or None
+                st.session_state["data_tag_filter_eins"] = filtered_eins or None
                 if not filtered_eins:
                     st.caption("No organizations in this category.")
         else:
-            st.session_state["tag_filter_eins"] = None
+            st.session_state["data_tag_filter_eins"] = None
 
     # ── Create tag ──
     st.markdown("---")
@@ -398,8 +432,13 @@ def render_sidebar():
     Render the full sidebar and return (all_parsed_rows, parse_errors).
     """
     _, logo_tag_sm = get_logo_tags()
-    user_id = st.session_state.get("user_id")
-    saved_orgs = load_user_organizations(user_id) if user_id else {}
+    user_id = st.session_state.get("auth_user_id")
+
+    # Cache saved orgs in session state; reload only when flagged dirty
+    if "data_saved_orgs" not in st.session_state or st.session_state.get("_orgs_dirty"):
+        st.session_state["data_saved_orgs"] = load_user_organizations(user_id) if user_id else {}
+        st.session_state.pop("_orgs_dirty", None)
+    saved_orgs = st.session_state.get("data_saved_orgs", {})
 
     with st.sidebar:
         # ── Brand ──
@@ -413,7 +452,24 @@ def render_sidebar():
         # We fill it AFTER resolving data so it reflects this render cycle.
         indicator_slot = st.empty()
 
+        # ── Admin System Info (admin only) ──
+        if st.session_state.get("auth_role") == "admin":
+            stats = get_system_stats()
+            st.markdown(
+                f'<div style="font-size:0.65rem;color:#64748B;'
+                f'background:#F8FAFC;border-radius:6px;padding:6px 10px;'
+                f'margin-bottom:8px;">'
+                f'<span style="font-weight:600;color:#0F172A;">System</span>'
+                f' &middot; {stats["total_users"]} user'
+                f'{"s" if stats["total_users"] != 1 else ""}'
+                f' &middot; {stats["total_saved_orgs"]} saved org'
+                f'{"s" if stats["total_saved_orgs"] != 1 else ""}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
         # ── Data Source Toggle ──
+        _section_label("Data Source")
         data_tab = st.radio(
             "Source",
             ["Upload XML", "Search ProPublica"],
@@ -495,6 +551,20 @@ def render_sidebar():
             with st.expander("Tags & Categories"):
                 _render_tags(user_id, saved_orgs)
 
+        st.divider()
+        _section_label("Account")
+
+        # ── Account Settings ──
+        display = (st.session_state.get("auth_display_name")
+                   or st.session_state.get("auth_username", "Account"))
+        with st.expander(f"\U0001F464 {display}"):
+            render_account_settings()
+
+        # ── Admin Panel (admin only) ──
+        if st.session_state.get("auth_role") == "admin":
+            with st.expander("\u2699 Admin Panel"):
+                render_admin_panel()
+
         # ── Credits ──
         st.markdown(
             '<div class="sb-credits">'
@@ -504,27 +574,5 @@ def render_sidebar():
             "</div>",
             unsafe_allow_html=True,
         )
-
-        # ── Admin & Logout ──
-        if st.session_state.get("role") == "admin":
-            if st.button("\u2699 Admin Panel", use_container_width=True):
-                st.session_state["show_admin"] = not st.session_state.get(
-                    "show_admin", False
-                )
-                st.rerun()
-
-        if st.button("Logout", use_container_width=True):
-            uid = st.session_state.get("user_id")
-            if uid:
-                clear_remember_me_token(uid)
-            for k in list(st.session_state.keys()):
-                del st.session_state[k]
-            st.rerun()
-
-    # Admin panel (rendered in main area, outside sidebar)
-    if (st.session_state.get("show_admin")
-            and st.session_state.get("role") == "admin"):
-        show_admin_panel()
-        st.markdown("---")
 
     return all_parsed_rows, parse_errors
