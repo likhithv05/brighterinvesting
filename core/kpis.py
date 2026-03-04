@@ -6,9 +6,6 @@ Developed by Epic Intentions for Brighter Investing
 Georgia Institute of Technology — Spring 2026
 """
 
-import pandas as pd
-
-
 def compute_kpis(row):
     """
     Compute all derived KPI metrics for a single parsed Form 990 record.
@@ -73,7 +70,7 @@ def compute_kpis(row):
         "RevenueGrowth": (total_rev - prior_rev) / prior_rev if prior_rev > 0 else 0,
         "ExpenseGrowth": (total_exp - prior_exp) / prior_exp if prior_exp > 0 else 0,
         "SalaryToExpenseRatio": salaries / total_exp if total_exp > 0 else 0,
-        "NetAssetGrowth": (total_net_assets - row.get("TotalNetAssetsBOY", 0)) / row.get("TotalNetAssetsBOY", 1) if row.get("TotalNetAssetsBOY", 0) > 0 else 0,
+        "NetAssetGrowth": (total_net_assets - (row.get("TotalNetAssetsBOY") or 0)) / (row.get("TotalNetAssetsBOY") or 1) if (row.get("TotalNetAssetsBOY") or 0) > 0 else 0,
 
         # ── New Metrics (Feedback) ──
         "CashOnly": cash,
@@ -312,12 +309,18 @@ def format_kpi_value(key, value):
     """Format a KPI value for display based on its type."""
     defn = KPI_DEFINITIONS.get(key, {})
     fmt = defn.get("format", "currency")
-    if value is None:
+    if value is None or not isinstance(value, (int, float)):
+        return "N/A"
+    # Guard against NaN / Infinity
+    if value != value or value == float("inf") or value == float("-inf"):
         return "N/A"
     if fmt == "currency":
-        if abs(value) >= 1_000_000:
+        av = abs(value)
+        if av >= 1_000_000_000:
+            return f"${value / 1_000_000_000:,.1f}B"
+        elif av >= 1_000_000:
             return f"${value / 1_000_000:,.1f}M"
-        elif abs(value) >= 1_000:
+        elif av >= 1_000:
             return f"${value / 1_000:,.1f}K"
         else:
             return f"${value:,.0f}"
@@ -332,6 +335,11 @@ def format_kpi_value(key, value):
 
 def get_kpi_status(key, value):
     """Return a status indicator (good/warning/concern) based on benchmarks."""
+    if value is None or not isinstance(value, (int, float)):
+        return "neutral"
+    # Guard against NaN / Infinity
+    if value != value or value == float("inf") or value == float("-inf"):
+        return "neutral"
     if key == "ProgramExpenseRatio":
         if value >= 0.75:
             return "good"

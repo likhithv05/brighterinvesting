@@ -7,7 +7,6 @@ Georgia Institute of Technology — Spring 2026
 """
 
 import io
-import pandas as pd
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
 from openpyxl.utils import get_column_letter
@@ -93,8 +92,25 @@ def generate_workbook(parsed_rows):
         parsed_rows: list of dicts from parse_single_xml()
 
     Returns:
-        bytes (Excel file content)
+        bytes (Excel file content), or a minimal error workbook on failure
     """
+    try:
+        return _generate_workbook_inner(parsed_rows)
+    except Exception:
+        # Return a minimal workbook with an error message
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Error"
+        ws.cell(row=1, column=1, value="An error occurred generating the report.")
+        ws.cell(row=2, column=1, value="Please try re-uploading your data.")
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf.getvalue()
+
+
+def _generate_workbook_inner(parsed_rows):
+    """Internal workbook generation — may raise on bad data."""
     wb = openpyxl.Workbook()
 
     # =========================================================
@@ -254,12 +270,12 @@ def generate_workbook(parsed_rows):
     _style_header_row(ws_bench, 3)
 
     for row_idx, (key, defn) in enumerate(KPI_DEFINITIONS.items(), start=2):
-        ws_bench.cell(row=row_idx, column=1, value=defn["label"])
+        ws_bench.cell(row=row_idx, column=1, value=defn.get("label", key))
         ws_bench.cell(row=row_idx, column=1).font = Font(name="Calibri", bold=True, size=10)
-        ws_bench.cell(row=row_idx, column=2, value=defn["description"])
+        ws_bench.cell(row=row_idx, column=2, value=defn.get("description", ""))
         ws_bench.cell(row=row_idx, column=2).font = Font(name="Calibri", size=10)
         ws_bench.cell(row=row_idx, column=2).alignment = Alignment(wrap_text=True)
-        ws_bench.cell(row=row_idx, column=3, value=defn["benchmark"])
+        ws_bench.cell(row=row_idx, column=3, value=defn.get("benchmark", ""))
         ws_bench.cell(row=row_idx, column=3).font = Font(name="Calibri", size=10)
         ws_bench.cell(row=row_idx, column=3).alignment = Alignment(wrap_text=True)
 

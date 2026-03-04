@@ -210,6 +210,8 @@ def render(parsed_rows):
     )
     if len(parsed_rows) > 1:
         _revenue_chart(parsed_rows)
+    else:
+        st.info("Upload multiple years to see revenue trend charts.")
 
     # ── Expense Statement ──
     st.markdown(
@@ -224,6 +226,8 @@ def render(parsed_rows):
     )
     if len(parsed_rows) > 1:
         _expense_chart(parsed_rows)
+    else:
+        st.info("Upload multiple years to see expense trend charts.")
 
     # ── Balance Sheet ──
     st.markdown(
@@ -238,3 +242,5 @@ def render(parsed_rows):
     )
     if len(parsed_rows) > 1:
         _balance_chart(parsed_rows)
+    else:
+        st.info("Upload multiple years to see balance sheet trend charts.")

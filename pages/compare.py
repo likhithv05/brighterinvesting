@@ -15,7 +15,7 @@ _ST = {"good": ("Healthy", "g"), "warning": ("Watch", "w"), "concern": ("At Risk
 
 
 def render(parsed_rows, latest_kpis, org_name, latest_year, ein_map):
-    comp_ein = st.session_state.get("comparison_ein")
+    comp_ein = st.session_state.get("data_comparison_ein")
     if not comp_ein or comp_ein not in ein_map:
         st.info("Select a comparison organization from the sidebar to view this tab.")
         return

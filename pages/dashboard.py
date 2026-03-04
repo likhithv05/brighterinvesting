@@ -110,6 +110,8 @@ def render(parsed_rows, latest_kpis, latest_year):
             unsafe_allow_html=True,
         )
         _revenue_expenses_chart(parsed_rows)
+    else:
+        st.info("Upload multiple years of data to see the Revenue vs. Expenses chart.")
 
     # ── Section 3: Secondary KPIs ──
     st.markdown(

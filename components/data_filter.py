@@ -62,21 +62,20 @@ def apply_filters(all_parsed_rows, parse_errors):
                                       help="Choose which organization to analyze.")
         selected_ein = org_options[selected_label]
 
-        st.session_state["comparison_mode"] = st.checkbox(
+        st.session_state["ui_comparison_mode"] = st.checkbox(
             "Compare with another organization",
-            value=st.session_state.get("comparison_mode", False))
-        if st.session_state["comparison_mode"]:
+            value=st.session_state.get("ui_comparison_mode", False))
+        if st.session_state["ui_comparison_mode"]:
             comp_options = {k: v for k, v in org_options.items() if v != selected_ein}
             if comp_options:
                 comp_label = st.selectbox("Compare against", list(comp_options.keys()),
                                           key="comp_org_select")
-                st.session_state["comparison_ein"] = comp_options[comp_label]
+                st.session_state["data_comparison_ein"] = comp_options[comp_label]
             else:
                 st.info("Upload files for a second organization to enable comparison.")
-                st.session_state["comparison_mode"] = False
+                st.session_state["ui_comparison_mode"] = False
 
-    st.session_state["selected_ein"] = selected_ein
-    st.session_state["selected_org_name"] = ein_map[selected_ein]["name"]
+    st.session_state["data_selected_ein"] = selected_ein
 
     # Year filtering
     org_rows = sorted(ein_map[selected_ein]["rows"], key=lambda r: r.get("TaxYear", ""))

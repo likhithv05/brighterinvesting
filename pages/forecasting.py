@@ -76,7 +76,7 @@ def _build_projections(bl, horizon, rev_pct, exp_pct, scenario, inv_pct):
         inv = bl["investment"] * (1 + inv_pct) ** yr
         other = bl["other_rev"] * (1 + rev_pct) ** yr
         rev = grants + inv + other
-        exp = bl["total_expenses"] * (1 + exp_pct) ** yr
+        exp = max(bl["total_expenses"] * (1 + exp_pct) ** yr, 0)
         surplus = rev - exp
         net += surplus
         liq += surplus

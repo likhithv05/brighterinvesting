@@ -33,7 +33,9 @@ def render(parsed_rows, latest_kpis, latest_year):
     )
     st.markdown(kpi_html(INVESTMENT_KPIS[8:], latest_kpis), unsafe_allow_html=True)
 
-    if len(parsed_rows) > 1:
+    if len(parsed_rows) < 2:
+        st.info("Upload multiple years of data to see the Cash & Savings Trend chart.")
+    else:
         st.markdown(
             sec("Cash & Savings Trend",
                 "Cash and savings positions over time."),

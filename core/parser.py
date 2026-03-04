@@ -89,6 +89,9 @@ def validate_parsed_row(row):
     return (len(issues) == 0, issues)
 
 
+_MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
 def parse_single_xml(xml_bytes, filename="uploaded.xml"):
     """
     Parse a single Form 990 XML file and return a flat dict of extracted fields.
@@ -105,6 +108,12 @@ def parse_single_xml(xml_bytes, filename="uploaded.xml"):
     """
     if not xml_bytes or len(xml_bytes) == 0:
         raise ValueError(f"{filename}: File is empty.")
+
+    if len(xml_bytes) > _MAX_FILE_SIZE:
+        raise ValueError(
+            f"{filename}: File is too large ({len(xml_bytes) / (1024*1024):.1f} MB). "
+            f"Maximum supported size is 50 MB."
+        )
 
     try:
         doc = xmltodict.parse(
@@ -126,9 +135,26 @@ def parse_single_xml(xml_bytes, filename="uploaded.xml"):
     f990 = ret_dat.get("IRS990", {}) or ret_dat.get("IRS990EZ", {}) or {}
 
     if not f990:
+        # Detect specific unsupported form types for a helpful message
+        detected_type = None
+        _type_map = {
+            "IRS990PF": "Form 990-PF (Private Foundation)",
+            "IRS990T": "Form 990-T (Exempt Organization Business Income Tax)",
+            "IRS990ScheduleA": "Form 990 Schedule A",
+            "IRS990ScheduleD": "Form 990 Schedule D",
+        }
+        for key, label in _type_map.items():
+            if key in ret_dat:
+                detected_type = label
+                break
+        if detected_type:
+            raise ValueError(
+                f"{filename}: This appears to be a {detected_type}, not a Form 990. "
+                f"Only Form 990 and 990-EZ are supported."
+            )
         raise ValueError(
             f"{filename}: No IRS990 or IRS990EZ data found. "
-            "This may be a different form type (e.g., 990-PF, 990-T)."
+            "This file does not appear to be a supported Form 990."
         )
 
     result = {
@@ -159,7 +185,7 @@ def parse_single_xml(xml_bytes, filename="uploaded.xml"):
         "OtherRevenue": safe_float(f990.get("CYOtherRevenueAmt")),
         "UnrelatedBusinessRevenue": safe_float(f990.get("TotalGrossUBIAmt")),
         "NetGainLossInvestments": safe_float(
-            f990.get("NetGainOrLossInvestmentsGrp", {}).get("TotalRevenueColumnAmt", 0)
+            (f990.get("NetGainOrLossInvestmentsGrp") or {}).get("TotalRevenueColumnAmt", 0)
         ),
 
         # Expenses
@@ -167,7 +193,7 @@ def parse_single_xml(xml_bytes, filename="uploaded.xml"):
         "PriorYearExpenses": safe_float(f990.get("PYTotalExpensesAmt")),
         "ProgramExpenses": safe_float(f990.get("TotalProgramServiceExpensesAmt")),
         "ManagementGeneralExpenses": safe_float(
-            f990.get("TotalFunctionalExpensesGrp", {}).get("ManagementAndGeneralAmt", 0)
+            (f990.get("TotalFunctionalExpensesGrp") or {}).get("ManagementAndGeneralAmt", 0)
         ),
         "FundraisingExpenses": safe_float(f990.get("CYTotalFundraisingExpenseAmt")),
         "SalariesWages": safe_float(f990.get("CYSalariesCompEmpBnftPaidAmt")),
