@@ -22,16 +22,19 @@ _GRANT_SCENARIOS = [
 # ─── Helpers ───
 
 def _fmt(v):
-    """Format a dollar value for display: $1.2M, $450.3K, or $1,234."""
+    r"""Format a dollar value for display: \$1.2M, \$450.3K, or \$1,234.
+
+    Dollar signs are escaped so st.markdown() doesn't treat them as LaTeX.
+    """
     if v is None:
         return "N/A"
     av = abs(v)
     if av >= 1_000_000:
-        s = f"${av / 1_000_000:,.1f}M"
+        s = f"\\${av / 1_000_000:,.1f}M"
     elif av >= 1_000:
-        s = f"${av / 1_000:,.1f}K"
+        s = f"\\${av / 1_000:,.1f}K"
     else:
-        s = f"${av:,.0f}"
+        s = f"\\${av:,.0f}"
     return f"({s})" if v < 0 else s
 
 
