@@ -14,13 +14,14 @@ from core.db_utils import get_tags_for_org
 _SMALL_WORDS = {"a", "an", "and", "as", "at", "but", "by", "for", "if", "in",
                 "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
 # Common abbreviations that should stay uppercase
-_UPPER_WORDS = {"inc", "llc", "llp", "lp", "co", "corp", "ii", "iii", "iv",
-                "usa", "us", "nw", "ne", "sw", "se", "ar", "ny", "ca", "tx",
-                "fl", "pa", "oh", "il", "ga", "nc", "va", "wa", "ma", "md",
-                "mn", "wi", "mo", "tn", "az", "nj", "ct", "ok", "or", "ky",
-                "la", "sc", "al", "ia", "ks", "ms", "ut", "nv", "nm", "id",
-                "hi", "wv", "nh", "me", "ri", "mt", "de", "sd", "nd", "ak",
-                "vt", "wy", "dc", "ymca", "ywca", "hiv", "aids"}
+_UPPER_WORDS = {"llc", "llp", "lp", "ii", "iii", "iv",
+                "usa", "us", "ymca", "ywca", "hiv", "aids",
+                "ar", "ny", "ca", "tx", "fl", "pa", "oh", "il", "ga",
+                "nc", "va", "wa", "ma", "md", "mn", "wi", "mo", "tn",
+                "az", "nj", "ct", "ok", "ky", "la", "sc", "al",
+                "ia", "ks", "ms", "ut", "nv", "nm", "hi", "wv",
+                "nh", "ri", "mt", "sd", "nd", "ak", "vt", "wy", "dc",
+                "nw", "ne", "sw", "se"}
 
 
 def smart_title(name):
@@ -47,6 +48,7 @@ def smart_title(name):
         elif i > 0 and lower in _SMALL_WORDS:
             result.append(lower + punct_suffix)
         else:
+            # Normal capitalization: "INC" -> "Inc", "REMERGE" -> "Remerge"
             result.append(word.capitalize() + punct_suffix)
     return " ".join(result)
 
@@ -119,27 +121,26 @@ def render_org_banner(parsed_rows, latest, user_id):
                 )
             banner_tags_html += '</div>'
 
-    st.markdown(f"""
-    <div class="org-ban">
-        <div class="accent-bar"></div>
-        <div class="inner">
-            <div>
-                <h2>{org_name}</h2>
-                <div class="meta">
-                    <span>EIN {ein}</span>
-                    <span class="dot">\u25cf</span>
-                    <span>{loc}</span>
-                    <span class="dot">\u25cf</span>
-                    <span>{len(parsed_rows)} year{"s" if len(parsed_rows) > 1 else ""}</span>
-                </div>
-                {banner_tags_html}
-            </div>
-            <div class="yr-badge">
-                {yr_range}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    n_years = len(parsed_rows)
+    yr_text = f"{n_years} year{'s' if n_years > 1 else ''}"
+    st.markdown(
+        f'<div class="org-ban">'
+        f'<div class="accent-bar"></div>'
+        f'<div class="inner"><div>'
+        f'<h2>{org_name}</h2>'
+        f'<div class="meta">'
+        f'<span>EIN {ein}</span>'
+        f'<span class="dot">\u25cf</span>'
+        f'<span>{loc}</span>'
+        f'<span class="dot">\u25cf</span>'
+        f'<span>{yr_range}</span>'
+        f'<span class="dot">\u25cf</span>'
+        f'<span>{yr_text}</span>'
+        f'</div>'
+        f'{banner_tags_html}'
+        f'</div></div></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_footer():
