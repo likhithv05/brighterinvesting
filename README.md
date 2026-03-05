@@ -151,7 +151,7 @@ brighterinvesting/
 │   ├── header.py                   # App header and org banner
 │   ├── kpi_cards.py                # KPI summary card components
 │   └── sidebar.py                  # Sidebar — data source, saved orgs, tags, account
-├── pages/
+├── views/
 │   ├── dashboard.py                # KPI dashboard tab
 │   ├── trends.py                   # Trend analysis tab
 │   ├── investments.py              # Investment detail tab

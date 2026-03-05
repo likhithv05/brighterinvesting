@@ -10,6 +10,47 @@ import streamlit as st
 from core.db_utils import get_tags_for_org
 
 
+# Words that should stay lowercase in title case (unless first word)
+_SMALL_WORDS = {"a", "an", "and", "as", "at", "but", "by", "for", "if", "in",
+                "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
+# Common abbreviations that should stay uppercase
+_UPPER_WORDS = {"inc", "llc", "llp", "lp", "co", "corp", "ii", "iii", "iv",
+                "usa", "us", "nw", "ne", "sw", "se", "ar", "ny", "ca", "tx",
+                "fl", "pa", "oh", "il", "ga", "nc", "va", "wa", "ma", "md",
+                "mn", "wi", "mo", "tn", "az", "nj", "ct", "ok", "or", "ky",
+                "la", "sc", "al", "ia", "ks", "ms", "ut", "nv", "nm", "id",
+                "hi", "wv", "nh", "me", "ri", "mt", "de", "sd", "nd", "ak",
+                "vt", "wy", "dc", "ymca", "ywca", "hiv", "aids"}
+
+
+def smart_title(name):
+    """Convert an org name to smart title case.
+
+    Handles ALL CAPS names from Form 990, preserving abbreviations
+    and applying standard title case rules.
+    """
+    if not name:
+        return name
+    # Only transform if the name is mostly uppercase
+    upper_count = sum(1 for c in name if c.isupper())
+    alpha_count = sum(1 for c in name if c.isalpha())
+    if alpha_count > 0 and upper_count / alpha_count < 0.7:
+        return name  # Already mixed case, leave it alone
+
+    words = name.split()
+    result = []
+    for i, word in enumerate(words):
+        lower = word.lower().rstrip(".,;:")
+        punct_suffix = word[len(lower):]  # trailing punctuation
+        if lower in _UPPER_WORDS:
+            result.append(lower.upper() + punct_suffix)
+        elif i > 0 and lower in _SMALL_WORDS:
+            result.append(lower + punct_suffix)
+        else:
+            result.append(word.capitalize() + punct_suffix)
+    return " ".join(result)
+
+
 @st.cache_data
 def _logo_b64():
     p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "logo.svg")
@@ -53,7 +94,7 @@ def render_header():
 
 def render_org_banner(parsed_rows, latest, user_id):
     """Render the organization banner card."""
-    org_name = latest.get("OrganizationName", "Unknown Organization")
+    org_name = smart_title(latest.get("OrganizationName", "Unknown Organization"))
     ein = latest.get("EIN", "N/A")
     city, state = latest.get("City", ""), latest.get("State", "")
     loc = f"{city}, {state}" if city and state else (city or state or "\u2014")
@@ -94,15 +135,6 @@ def render_org_banner(parsed_rows, latest, user_id):
                 {banner_tags_html}
             </div>
             <div class="yr-badge">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none"
-                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1
-                             2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18
-                             0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21
-                             18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25
-                             2.25 0 0 1 21 11.25v7.5"/>
-                </svg>
                 {yr_range}
             </div>
         </div>

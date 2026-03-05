@@ -7,7 +7,7 @@ tag management, account settings, admin panel, and role enforcement.
 import os
 import streamlit as st
 
-from components.header import get_logo_tags
+from components.header import get_logo_tags, smart_title
 from core.parser import parse_single_xml
 from core.db_utils import (
     save_organization,
@@ -288,7 +288,7 @@ def _render_saved_orgs(saved_orgs, user_id):
         col_load, col_del = st.columns([3, 1])
         with col_load:
             if st.button(
-                f"{s_info['name'][:25]}{'…' if len(s_info['name']) > 25 else ''} ({yrs})",
+                f"{smart_title(s_info['name'])[:25]}{'…' if len(s_info['name']) > 25 else ''} ({yrs})",
                 key=f"load_saved_{s_ein}",
                 use_container_width=True,
             ):
@@ -485,15 +485,8 @@ def render_sidebar():
         if data_tab == "Upload XML":
             st.markdown(
                 '<div class="sb-upload-zone">'
-                '<div class="sb-upload-icon">'
-                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" '
-                'viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">'
-                '<path stroke-linecap="round" stroke-linejoin="round" '
-                'd="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 '
-                '0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>'
-                '</svg></div>'
                 '<div class="sb-upload-title">Upload Form 990 XMLs</div>'
-                '<div class="sb-upload-sub">Drop files or click to browse'
+                '<div class="sb-upload-sub">Drop files or click Browse below'
                 '</div></div>',
                 unsafe_allow_html=True,
             )
@@ -527,7 +520,7 @@ def render_sidebar():
         if all_parsed_rows:
             names = set(r.get("OrganizationName", "") for r in all_parsed_rows)
             display_name = (
-                next(iter(names)) if len(names) == 1
+                smart_title(next(iter(names))) if len(names) == 1
                 else f"{len(names)} organizations"
             )
             n_years = len(set(r.get("TaxYear", "") for r in all_parsed_rows))

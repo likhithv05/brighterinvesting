@@ -10,6 +10,7 @@ from core.kpis import (
     format_kpi_value, get_kpi_status,
 )
 from components.kpi_cards import sec
+from components.header import smart_title
 
 _ST = {"good": ("Healthy", "g"), "warning": ("Watch", "w"), "concern": ("At Risk", "b")}
 
@@ -26,7 +27,7 @@ def render(parsed_rows, latest_kpis, org_name, latest_year, ein_map):
     )
     comp_latest = comp_rows[-1]
     comp_kpis = compute_kpis(comp_latest)
-    comp_name = comp_latest.get("OrganizationName", "Unknown")
+    comp_name = smart_title(comp_latest.get("OrganizationName", "Unknown"))
     comp_year = comp_latest.get("TaxYear", "")
 
     st.markdown(

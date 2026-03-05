@@ -52,11 +52,11 @@ if not st.session_state["auth_authenticated"]:
 from core.db_utils import verify_session          # noqa: E402
 from core.kpis import compute_kpis                # noqa: E402
 from core.export import generate_workbook          # noqa: E402
-from components.header import render_header, render_org_banner, render_footer  # noqa: E402
+from components.header import render_header, render_org_banner, render_footer, smart_title  # noqa: E402
 from components.sidebar import render_sidebar      # noqa: E402
 from components.data_filter import apply_filters   # noqa: E402
 from components.empty_state import render_empty_state  # noqa: E402
-from pages import dashboard, trends, investments, statements, raw_data, compare, forecasting  # noqa: E402
+from views import dashboard, trends, investments, statements, raw_data, compare, forecasting  # noqa: E402
 
 # ─── Force Logout Check ───
 # Verify the session every 30 seconds, not on every rerun.
@@ -111,7 +111,7 @@ with st.spinner("Analyzing financial data…"):
 
     latest = parsed_rows[-1]
     latest_kpis = compute_kpis(latest)
-    org_name = latest.get("OrganizationName", "Unknown Organization")
+    org_name = smart_title(latest.get("OrganizationName", "Unknown Organization"))
     latest_year = latest.get("TaxYear", "")
 
 # ─── Zero-activity warning ───
@@ -127,8 +127,8 @@ render_org_banner(parsed_rows, latest, st.session_state.get("auth_user_id"))
 def _cached_workbook(rows):
     return generate_workbook(rows)
 
-c1, _ = st.columns([1, 4])
-with c1:
+# Download button in sidebar
+with st.sidebar:
     with st.spinner("Preparing Excel report…"):
         wb_bytes = _cached_workbook(parsed_rows)
     safe = org_name.replace(" ", "_").replace("/", "_")[:30]
